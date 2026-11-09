@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Serve the factory dashboard for the current project.
+
+Usage: factory-dashboard [port]        default port 8787
+
+`/` is the plugin's dashboard/index.html; every other path (jobs/, the job
+files it reads) comes from the project's .factory/ directory, with directory
+listings, which is what the page needs. Static, read-only, local.
+"""
+
+import sys
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from factory_common import FACTORY  # noqa: E402
+
+PAGE = Path(__file__).resolve().parents[1] / "dashboard" / "index.html"
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def translate_path(self, path):
+        clean = path.split("?", 1)[0].split("#", 1)[0]
+        if clean in ("/", "/index.html", "/dashboard.html"):
+            return str(PAGE)
+        return super().translate_path(path)
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+def main(argv):
+    port = int(argv[0]) if argv else 8787
+    (FACTORY / "jobs").mkdir(parents=True, exist_ok=True)
+    server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, directory=str(FACTORY)))
+    print(f"factory dashboard: http://127.0.0.1:{port}/  (jobs from {FACTORY / 'jobs'})", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

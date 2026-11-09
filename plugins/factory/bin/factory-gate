@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+"""The deterministic gate: does the job's branch pass the project's checks?
+
+Usage:
+  factory-gate <job-id>            write round-N/checks.md; exit 0 on PASS, 1 on FAIL
+  factory-gate <job-id> --merge    same, as round-N/merge-checks.md (factory-job merge runs it)
+  factory-gate --hook              builder SubagentStop hook: run the checks once, exit 2 on failure
+
+The gate runs the project's .factory/checks.sh from the main checkout inside the
+job's worktree, so a branch can't change the checks it is judged by. It also
+fails when the branch:
+
+- modifies or deletes a file matching config.json `protected_paths` (fnmatch
+  patterns where `*` also matches `/`; adding files is fine), or
+- weakens the tests: deletes a file matching `test_globs`, or adds a skip or
+  xfail marker. Tests may be edited (code moves, behaviour changes); they may
+  not disappear or be switched off.
+"""
+
+import fnmatch
+import json
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from factory_common import CHECKS, CONFIG, FACTORY  # noqa: E402
+
+TAIL = 80
+SKIP_MARKERS = re.compile(
+    r"@pytest\.mark\.(skip|skipif|xfail)|pytest\.(skip|xfail)\(|unittest\.skip"
+    r"|\b(it|test|describe)\.(skip|only)\(|\bx(it|test|describe)\(|\bfit\(|\bfdescribe\("
+)
+
+
+def die(msg):
+    print(f"gate: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def git(worktree, *args):
+    res = subprocess.run(["git", *args], cwd=worktree, capture_output=True, text=True)
+    if res.returncode != 0:
+        die(f"`git {' '.join(args)}` failed: {res.stderr.strip()}")
+    return res.stdout
+
+
+def matches(path, patterns):
+    return any(fnmatch.fnmatch(path, p) for p in patterns)
+
+
+def protected_changes(worktree):
+    """Existing files under protected_paths that the branch modified or deleted."""
+    diff = git(worktree, "diff", "--name-status", f"origin/{CONFIG['base_branch']}...HEAD")
+    hits = []
+    for line in diff.splitlines():
+        status, *paths = line.split("\t")
+        if status.startswith("A"):
+            continue
+        old = paths[0]  # for renames and copies, the original path
+        if matches(old, CONFIG["protected_paths"]):
+            hits.append(f"{status[0]} {old}")
+    return hits
+
+
+def weakened_tests(worktree):
+    """Test files the branch deleted, and skip/xfail markers it added."""
+    base = f"origin/{CONFIG['base_branch']}...HEAD"
+    hits = []
+    for line in git(worktree, "diff", "--name-status", base).splitlines():
+        status, *paths = line.split("\t")
+        if status.startswith("D") and matches(paths[0], CONFIG["test_globs"]):
+            hits.append(f"deleted {paths[0]}")
+    current = None
+    for line in git(worktree, "diff", "--unified=0", base).splitlines():
+        if line.startswith("+++ "):
+            current = line[4:].removeprefix("b/")
+        elif line.startswith("+") and not line.startswith("+++") and current and current != "/dev/null":
+            if matches(current, CONFIG["test_globs"]) and SKIP_MARKERS.search(line):
+                hits.append(f"{current}: {line[1:].strip()[:80]}")
+    return hits
+
+
+def run_checks(worktree):
+    start = time.monotonic()
+    res = subprocess.run(["bash", str(CHECKS)], cwd=worktree, capture_output=True, text=True)
+    return res.returncode, res.stdout + res.stderr, int(time.monotonic() - start)
+
+
+def gate(job_id, merge):
+    job = json.loads((FACTORY / "jobs" / job_id / "job.json").read_text())
+    worktree = job["worktree"]
+    if job["round"] < 1:
+        die(f"{job_id} hasn't started a build round")
+    round_dir = FACTORY / "jobs" / job_id / f"round-{job['round']}"
+    commit = git(worktree, "rev-parse", "HEAD").strip()
+    protected = protected_changes(worktree)
+    weakened = weakened_tests(worktree)
+    code, log, seconds = run_checks(worktree)
+    verdict = "PASS" if code == 0 and not protected and not weakened else "FAIL"
+    name = "merge-checks" if merge else "checks"
+    (round_dir / f"{name}.log").write_text(log)
+    tail = "\n".join(log.rstrip().splitlines()[-TAIL:])
+    summary = [
+        f"checks.sh {'passed' if code == 0 else f'failed with exit {code}'} in {seconds}s",
+        f"Protected paths: {'changed: ' + ', '.join(protected) if protected else 'none changed'}",
+        f"Tests: {'weakened: ' + '; '.join(weakened) if weakened else 'none deleted or skipped'}",
+        f"Commit {commit[:7]}" + (", synced with the latest base before merging" if merge else ""),
+    ]
+    (round_dir / f"{name}.md").write_text(
+        f"GATE: {verdict}\nCOMMIT: {commit}\n\n"
+        "## Summary\n" + "\n".join(f"- {s}" for s in summary) + "\n\n"
+        "## Protected paths\n" + ("\n".join(f"- {p}" for p in protected) if protected else "None changed.")
+        + "\n\n## Tests\n" + ("\n".join(f"- {w}" for w in weakened) if weakened else "None deleted or skipped.")
+        + f"\n\n## checks.sh\nExit {code} in {seconds}s. Last {TAIL} lines of {name}.log:\n\n```\n{tail}\n```\n"
+    )
+    extra = (f", protected paths changed: {', '.join(protected)}" if protected else "") + \
+            (f", tests weakened: {len(weakened)}" if weakened else "")
+    print(f"GATE: {verdict} ({job_id} round {job['round']}, checks.sh exit {code} in {seconds}s{extra})")
+    sys.exit(0 if verdict == "PASS" else 1)
+
+
+def hook():
+    """SubagentStop hook. Only the builder is judged; any other agent stops freely."""
+    event = json.load(sys.stdin)
+    if event.get("stop_hook_active"):
+        sys.exit(0)  # one nudge per stop; the gate decides
+    agent_type = event.get("agent_type") or ""
+    if agent_type and not agent_type.endswith("builder"):
+        sys.exit(0)
+    path = event.get("agent_transcript_path") or event.get("transcript_path")
+    if not path:
+        sys.exit(0)
+    with open(Path(path).expanduser()) as f:
+        content = json.loads(f.readline())["message"]["content"]
+    prompt = content if isinstance(content, str) else " ".join(b.get("text", "") for b in content)
+    if "Job: " not in prompt or "Build round" not in prompt:
+        sys.exit(0)  # not a builder prompt
+    job_id = prompt.split("Job: ", 1)[1].split(".", 1)[0]
+    job = json.loads((FACTORY / "jobs" / job_id / "job.json").read_text())
+    code, log, _ = run_checks(job["worktree"])
+    weakened = weakened_tests(job["worktree"])
+    if code != 0 or weakened:
+        tail = "\n".join(log.rstrip().splitlines()[-40:])
+        print(f".factory/checks.sh fails in your worktree (exit {code})"
+              + (f" and the branch weakens tests: {'; '.join(weakened)}" if weakened else "")
+              + ". The gate will reject this build. Fix it, or write STATUS: BLOCKED in build.md "
+              f"if you can't.\n\n{tail}", file=sys.stderr)
+        sys.exit(2)
+
+
+def main(argv):
+    if argv == ["--hook"]:
+        hook()
+    elif len(argv) == 1 and not argv[0].startswith("-"):
+        gate(argv[0], merge=False)
+    elif len(argv) == 2 and argv[1] == "--merge":
+        gate(argv[0], merge=True)
+    else:
+        die(__doc__.strip())
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

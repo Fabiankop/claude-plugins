@@ -1,0 +1,99 @@
+{
+  "$comment": "Ejemplo: nuon-gconomic/nuon-apps. Solo las claves que difieren de los defaults del plugin (bin/factory_common.py).",
+  "concurrency": 3,
+  "max_rounds": 5,
+  "base_branch": "staging",
+  "merge_method": "squash",
+  "language": "es",
+  "routing": {
+    "low": {
+      "builder": "sonnet",
+      "standards": "haiku",
+      "spec": "haiku"
+    },
+    "medium": {
+      "builder": "sonnet",
+      "standards": "sonnet",
+      "spec": "sonnet"
+    },
+    "high": {
+      "builder": "opus",
+      "standards": "sonnet",
+      "spec": "sonnet"
+    }
+  },
+  "surface_reviewers": {
+    "ui": {
+      "ux": "sonnet",
+      "ui": "sonnet"
+    },
+    "security": {
+      "security": "opus"
+    }
+  },
+  "protected_paths": [
+    ".factory/*",
+    "specs/mission.md"
+  ],
+  "test_globs": [
+    "tests/*",
+    "*/tests/*",
+    "test_*.py",
+    "*_test.py",
+    "*.test.*",
+    "*.spec.*"
+  ],
+  "human_paths": [
+    ".railway/railway.ts",
+    "*/Dockerfile",
+    "*/requirements.in",
+    "*/requirements.lock",
+    "packages/nuon_core/*",
+    "nuon-data/contracts.json",
+    "nuon-data/writers.json",
+    "packages/nuon-theme/src/*",
+    "packages/nuon-theme/dist/*",
+    "DESIGN.md"
+  ],
+  "human_notes": [
+    "Un cambio en packages/nuon-theme/ o en DESIGN.md lleva la etiqueta `diseño`: Carlos Rincón revisa el diseño.",
+    "Una migración del esquema Postgres `nuon` la ve siempre una persona.",
+    "packages/nuon-theme/colour-baseline.json que solo baja cuentas NO es un cambio de diseño: no escalar por eso.",
+    "Una app apagada que deja pasos manuales en Cloudflare: escalar con la lista de pasos, no por el diff."
+  ],
+  "ports": {
+    "base": 5200,
+    "step": 10,
+    "dashboard": 8787
+  },
+  "prices_usd_per_mtok": {
+    "claude-fable-5-1": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_write_5m": 12.5,
+      "cache_write_1h": 20.0,
+      "cache_read": 0.25
+    },
+    "claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_write_5m": 5.0,
+      "cache_write_1h": 8.0,
+      "cache_read": 0.2
+    },
+    "claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_write_5m": 2.5,
+      "cache_write_1h": 4.0,
+      "cache_read": 0.2
+    },
+    "claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_write_5m": 0.125,
+      "cache_write_1h": 0.2,
+      "cache_read": 0.01
+    }
+  }
+}
