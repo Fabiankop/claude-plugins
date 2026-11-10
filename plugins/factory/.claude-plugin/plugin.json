@@ -2,7 +2,7 @@
   "name": "factory",
   "displayName": "Factory",
   "version": "0.1.1",
-  "description": "Fábrica de software desatendida: construye issues de GitHub etiquetados `factory` con las skills de Matt Pocock (grilling, to-spec, tdd, code-review), una compuerta determinista, revisores por superficie y un approver que decide si el PR se fusiona solo.",
+  "description": "Unattended software factory: builds GitHub issues labeled `factory` with Matt Pocock's skills (grilling, to-spec, tdd, code-review), a deterministic gate, surface reviewers and an approver that decides whether the PR merges on its own.",
   "author": { "name": "Fabián Rodríguez", "url": "https://github.com/Fabiankop" },
   "repository": "https://github.com/Fabiankop/claude-plugins",
   "license": "MIT",

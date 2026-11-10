@@ -1,155 +1,154 @@
 # Factory
 
-Fábrica de software desatendida para Claude Code. Construye cada issue de
-GitHub etiquetado `factory` de punta a punta y abre un PR por issue:
+Unattended software factory for Claude Code. Builds every GitHub issue
+labeled `factory` end to end and opens one PR per issue:
 
 ```
-intake → spec → build → gate → review → approve → PR fusionado (o needs-human)
+intake → spec → build → gate → review → approve → merged PR (or needs-human)
 ```
 
-La metodología de cada estación viene de las **skills de Matt Pocock**
-(`mattpocock-skills`): `grilling` en intake, `to-spec` y `diagnosing-bugs` en
-la spec, `tdd` en el builder, los dos ejes de `code-review` como revisores
-separados. Lo que pone este plugin es lo que Pocock no tiene porque en su flujo
-el humano está sentado al lado: la máquina de estados, la compuerta
-determinista, los revisores por superficie (UX, UI, seguridad), el approver que
-decide si el PR se fusiona solo, y el dashboard.
+The methodology at each station comes from **Matt Pocock's skills**
+(`mattpocock-skills`): `grilling` at intake, `to-spec` and `diagnosing-bugs` in
+the spec, `tdd` in the builder, the two axes of `code-review` as separate
+reviewers. What this plugin adds is what Pocock doesn't have because in his
+flow the human sits right there: the state machine, the deterministic gate,
+the surface reviewers (UX, UI, security), the approver that decides whether
+the PR merges on its own, and the dashboard.
 
-## Instalar
+## Install
 
 ```bash
-claude plugin marketplace add Fabiankop/claude-plugins   # una vez por máquina
-claude plugin install factory@fabiankop                   # en cada proyecto
+claude plugin marketplace add Fabiankop/claude-plugins   # once per machine
+claude plugin install factory@fabiankop                   # in each project
 ```
 
-`factory` depende de `mattpocock-skills` del marketplace oficial; la
-dependencia se instala sola (el marketplace la permite con
-`allowCrossMarketplaceDependenciesOn`), o la instalas antes con
+`factory` depends on `mattpocock-skills` from the official marketplace; the
+dependency installs itself (the marketplace allows it via
+`allowCrossMarketplaceDependenciesOn`), or install it first with
 `claude plugin install mattpocock-skills@claude-plugins-official`.
 
-Para probar una copia local sin publicar:
+To try a local copy without publishing:
 
 ```bash
 claude --plugin-dir ./plugins/factory
 ```
 
-## Configurar un proyecto
+## Set up a project
 
-Una vez por repo, dentro del repo:
-
-```
-/setup-matt-pocock-skills     tracker (GitHub Issues), etiquetas, dónde van los docs
-/factory:setup                rama base, comando de checks, rutas protegidas, superficies
-```
-
-El resultado en el proyecto es esto y nada más:
+Once per repo, inside the repo:
 
 ```
-.factory/config.json    solo las claves que difieren de los defaults
-.factory/checks.sh      lo que CI corre en este repo
-.factory/jobs/          estado en tiempo de ejecución (gitignored)
+/setup-matt-pocock-skills     tracker (GitHub Issues), labels, where the docs go
+/factory:setup                base branch, checks command, protected paths, surfaces
 ```
 
-Agentes, scripts y dashboard vienen del plugin. Un ejemplo completo de config:
+The result in the project is this and nothing more:
+
+```
+.factory/config.json    only the keys that differ from the defaults
+.factory/checks.sh      what CI runs in this repo
+.factory/jobs/          runtime state (gitignored)
+```
+
+Agents, scripts and dashboard come from the plugin. A complete config example:
 [`examples/config.nuon-apps.json`](examples/config.nuon-apps.json).
 
-## Usar
+## Use
 
 ```
-/factory:new <idea>        la única estación con humano: grilling, issue etiquetado, y a la cola
-/factory:run               drena la cola; también reanuda lo que una sesión anterior dejó
-/factory:issue <n>         un issue ahora
-/factory:rework <n>        un job en needs-human vuelve al builder con tus comentarios del PR
+/factory:new <idea>        the only station with a human: grilling, labeled issue, into the queue
+/factory:run               drains the queue; also resumes what a previous session left behind
+/factory:issue <n>         one issue now
+/factory:rework <n>        a needs-human job goes back to the builder with your PR comments
 ```
 
-El dashboard arranca con cada `/factory:run` (`factory-dashboard`, puerto
-8787): el tablero por estación, los `## Summary` de cada agente en lenguaje
-llano, los archivos técnicos detrás, y qué espera de ti.
+The dashboard starts with every `/factory:run` (`factory-dashboard`, port
+8787): the board by station, each agent's `## Summary` in plain language,
+the technical files behind them, and what it's waiting on from you.
 
-## Cómo decide cada estación
+## How each station decides
 
-| Estación | Skill de Pocock | Modelo | Escribe |
+| Station | Pocock skill | Model | Writes |
 |---|---|---|---|
-| intake | `grilling` | fable | `intake.md`: ACCEPT, NEEDS-INFO o REJECT; riesgo y superficies |
-| spec-writer | `to-spec` (plantilla), `codebase-design`, `diagnosing-bugs` | opus | `spec.md`: la plantilla de to-spec más `## Seams` y `## Acceptance criteria` |
-| builder | `tdd` | según riesgo | commits, PR en borrador, `build.md` |
-| gate | — (determinista) | — | `round-N/checks.md` |
-| reviewer-standards | `code-review`, eje Estándares | según riesgo | `review-standards.md` |
-| reviewer-spec | `code-review`, eje Spec | según riesgo | `review-spec.md` |
-| reviewer-ux / ui / security | — | según superficie | `review-<r>.md` |
-| approver | — | opus | `decision.md`: APPROVE, ESCALATE o EXTEND |
+| intake | `grilling` | fable | `intake.md`: ACCEPT, NEEDS-INFO or REJECT; risk and surfaces |
+| spec-writer | `to-spec` (template), `codebase-design`, `diagnosing-bugs` | opus | `spec.md`: the to-spec template plus `## Seams` and `## Acceptance criteria` |
+| builder | `tdd` | by risk | commits, draft PR, `build.md` |
+| gate | — (deterministic) | — | `round-N/checks.md` |
+| reviewer-standards | `code-review`, Standards axis | by risk | `review-standards.md` |
+| reviewer-spec | `code-review`, Spec axis | by risk | `review-spec.md` |
+| reviewer-ux / ui / security | — | by surface | `review-<r>.md` |
+| approver | — | opus | `decision.md`: APPROVE, ESCALATE or EXTEND |
 
-El enrutamiento por riesgo y superficie está en `config.json`
+Routing by risk and surface lives in `config.json`
 (`routing`, `surface_reviewers`).
 
-## Reglas que la fábrica hace cumplir sola
+## Rules the factory enforces on its own
 
-- **Compuerta determinista.** `checks.sh` corre desde el checkout principal
-  dentro del worktree del job: una rama no puede cambiar los checks con los que
-  se la juzga.
-- **Tests por comportamiento, no por ruta.** El gate falla si la rama borra un
-  archivo de test o agrega `skip`/`xfail`. Los tests se pueden editar; no
-  desaparecer ni apagarse. No asume que los tests viven en `tests/`.
-- **`Refs` vs `Closes`.** Un job que intake recortó no puede cerrar su issue.
-- **La base se movió.** Si el gate falla al sincronizar antes del merge, el
-  builder recibe una ronda más; nadie te interrumpe.
-- **Rondas agotadas.** El approver decide EXTEND (los hallazgos convergen) o
-  ESCALATE; no se escala por defecto.
-- **Escalación por reglas del proyecto, no del plugin.** `human_paths` y
-  `human_notes` en `config.json` son la única lista de "esto lo ve siempre una
-  persona".
-- **La etiqueta es la frontera de confianza.** Solo corren issues con
-  `factory`; el texto del issue llega a los agentes citado como dato.
-- **Los docs describen la intención; el árbol describe la realidad.** Los
-  agentes verifican dónde vive el código antes de juzgar o construir, y no
-  reorganizan de paso: mover código es otro issue
-  (`/improve-codebase-architecture` los produce).
+- **Deterministic gate.** `checks.sh` runs from the main checkout against the
+  job's worktree: a branch cannot change the checks it is judged by.
+- **Tests by behaviour, not by path.** The gate fails if the branch deletes a
+  test file or adds `skip`/`xfail`. Tests can be edited; they can't disappear
+  or be switched off. It doesn't assume tests live in `tests/`.
+- **`Refs` vs `Closes`.** A job that intake rescoped cannot close its issue.
+- **The base moved.** If the gate fails to sync before the merge, the builder
+  gets one more round; nobody interrupts you.
+- **Rounds exhausted.** The approver decides EXTEND (findings are converging)
+  or ESCALATE; escalation is not the default.
+- **Escalation by project rules, not plugin rules.** `human_paths` and
+  `human_notes` in `config.json` are the only list of "a person always sees
+  this".
+- **The label is the trust boundary.** Only issues labeled `factory` run; the
+  issue text reaches the agents quoted as data.
+- **Docs describe intent; the tree describes reality.** Agents verify where
+  the code actually lives before judging or building, and don't reorganize
+  along the way: moving code is another issue
+  (`/improve-codebase-architecture` produces them).
 
-## Cómo se conectan las skills de Pocock
+## How Pocock's skills plug in
 
-Un agente **precarga** una skill con `skills:` en su frontmatter: el texto
-completo entra en su contexto al arrancar. Eso funciona con las skills que
-Pocock marca como invocables por el modelo: `grilling`, `tdd`, `code-review`,
-`codebase-design`, `diagnosing-bugs`, `domain-modeling`.
+An agent **preloads** a skill with `skills:` in its frontmatter: the full text
+enters its context at startup. That works with the skills Pocock marks as
+model-invocable: `grilling`, `tdd`, `code-review`, `codebase-design`,
+`diagnosing-bugs`, `domain-modeling`.
 
-Las que él marca `disable-model-invocation: true` (`to-spec`, `to-tickets`,
-`wayfinder`, `triage`, `grill-with-docs`, `handoff`, `retro`…) son para que
-las escriba una persona, y Claude Code no deja precargarlas ni invocarlas
-desde un agente. La fábrica las usa así:
+The ones he marks `disable-model-invocation: true` (`to-spec`, `to-tickets`,
+`wayfinder`, `triage`, `grill-with-docs`, `handoff`, `retro`…) are meant to be
+typed by a person, and Claude Code doesn't allow preloading or invoking them
+from an agent. The factory uses them like this:
 
-- `to-spec`: el spec-writer lee su `SKILL.md` desde la caché del plugin y usa
-  su plantilla. Método de Pocock, destino de la fábrica.
-- `grill-with-docs`: `/factory:new` llama a sus dos partes, `grilling` y
+- `to-spec`: the spec-writer reads its `SKILL.md` from the plugin cache and
+  uses its template. Pocock's method, the factory's destination.
+- `grill-with-docs`: `/factory:new` calls its two parts, `grilling` and
   `domain-modeling`.
-- `wayfinder`, `to-tickets`, `triage`, `handoff`, `retro`: las corres tú,
-  antes o después de la fábrica; el README de cada una dice cuándo.
+- `wayfinder`, `to-tickets`, `triage`, `handoff`, `retro`: you run them
+  yourself, before or after the factory; each one's README says when.
 
-## Verificado
+## Verified
 
-Probado con Claude Code y `mattpocock-skills` 1.3.1 instalado:
+Tested with Claude Code and `mattpocock-skills` 1.3.1 installed:
 
-- El plugin carga con sus 5 skills, 9 agentes y el hook (`claude plugin validate` pasa;
-  `claude plugin details factory` los lista).
-- `skills:` en un agente precarga la skill de Pocock por su nombre corto
-  (`grilling` llegó completa al contexto de `intake`).
-- El hook `SubagentStop` dispara al terminar `factory:builder` con el matcher
-  `factory:builder` (con `builder` a secas no dispara).
-- `factory-job`, `factory-gate` y `factory-dashboard` corren contra un
-  proyecto con `.factory/config.json`; el gate detecta un test borrado y un
-  `@pytest.mark.skip` nuevo.
+- The plugin loads with its 5 skills, 9 agents and the hook (`claude plugin validate` passes;
+  `claude plugin details factory` lists them).
+- `skills:` in an agent preloads Pocock's skill by its short name
+  (`grilling` arrived complete in `intake`'s context).
+- The `SubagentStop` hook fires when `factory:builder` finishes with the
+  matcher `factory:builder` (plain `builder` doesn't fire).
+- `factory-job`, `factory-gate` and `factory-dashboard` run against a project
+  with `.factory/config.json`; the gate detects a deleted test and a new
+  `@pytest.mark.skip`.
 
-Lo que falta probar es un job completo contra un repo real: eso es el primer
-`/factory:issue` en el proyecto piloto.
+What remains untested is a full job against a real repo: that's the first
+`/factory:issue` in the pilot project.
 
-## Estructura
+## Structure
 
 ```
 plugins/factory/
-├── .claude-plugin/plugin.json     depende de mattpocock-skills
+├── .claude-plugin/plugin.json     depends on mattpocock-skills
 ├── skills/{run,new,issue,rework,setup}/SKILL.md
 ├── agents/                        intake, spec-writer, builder, reviewer-*, approver
 ├── bin/                           factory-job, factory-gate, factory-route, factory-dashboard
-├── hooks/hooks.json               SubagentStop del builder → factory-gate --hook
+├── hooks/hooks.json               builder's SubagentStop → factory-gate --hook
 ├── dashboard/index.html
 └── examples/config.nuon-apps.json
 ```

@@ -4,7 +4,7 @@
     "name": "Fabián Rodríguez",
     "url": "https://github.com/Fabiankop"
   },
-  "description": "Plugins personales de Fabián Rodríguez para Claude Code: la fábrica de software sobre las skills de Matt Pocock.",
+  "description": "Fabián Rodríguez's personal plugins for Claude Code: the software factory built on Matt Pocock's skills.",
   "allowCrossMarketplaceDependenciesOn": [
     "claude-plugins-official"
   ],
@@ -12,7 +12,7 @@
     {
       "name": "factory",
       "source": "./plugins/factory",
-      "description": "Fábrica de software desatendida sobre las skills de Matt Pocock: issue → intake → spec → build → gate → review → approve → PR."
+      "description": "Unattended software factory on Matt Pocock's skills: issue → intake → spec → build → gate → review → approve → PR."
     }
   ]
 }

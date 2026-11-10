@@ -1,5 +1,5 @@
 {
-  "$comment": "Ejemplo: nuon-gconomic/nuon-apps. Solo las claves que difieren de los defaults del plugin (bin/factory_common.py).",
+  "$comment": "Example: nuon-gconomic/nuon-apps. Only the keys that differ from the plugin defaults (bin/factory_common.py).",
   "concurrency": 3,
   "max_rounds": 5,
   "base_branch": "staging",
@@ -56,10 +56,10 @@
     "DESIGN.md"
   ],
   "human_notes": [
-    "Un cambio en packages/nuon-theme/ o en DESIGN.md lleva la etiqueta `diseño`: Carlos Rincón revisa el diseño.",
-    "Una migración del esquema Postgres `nuon` la ve siempre una persona.",
-    "packages/nuon-theme/colour-baseline.json que solo baja cuentas NO es un cambio de diseño: no escalar por eso.",
-    "Una app apagada que deja pasos manuales en Cloudflare: escalar con la lista de pasos, no por el diff."
+    "A change in packages/nuon-theme/ or in DESIGN.md carries the `diseño` label: Carlos Rincón reviews the design.",
+    "A migration of the `nuon` Postgres schema is always seen by a person.",
+    "packages/nuon-theme/colour-baseline.json that only lowers counts is NOT a design change: do not escalate for that.",
+    "A disabled app that leaves manual steps in Cloudflare: escalate with the list of steps, not because of the diff."
   ],
   "ports": {
     "base": 5200,
