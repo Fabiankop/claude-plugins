@@ -88,7 +88,11 @@ For NEEDS-INFO only: the frontier, numbered, each with ➡️ your recommended a
 
 - The four header lines first, then a blank line. Write `RISK`, `SURFACES` and
   `RESCOPED` on every decision; for NEEDS-INFO and REJECT, your best guess.
-- `RESCOPED: yes` when your Scope differs from what the issue asked for.
+- `RESCOPED: yes` only when your Scope leaves part of the issue's open work for
+  later. If your Scope covers everything that is still open in the issue (every
+  unchecked item, every unresolved request), write `RESCOPED: no` even if
+  earlier PRs already did part of it: this PR closes the issue. When unsure,
+  read the issue's checkboxes and the comments from the operator.
 - Everything below the header is posted as a comment on the issue, so write it
   in the project's language (`language` in `.factory/config.json`), plain and
   polite, for the author. Keep the section headings as shown.

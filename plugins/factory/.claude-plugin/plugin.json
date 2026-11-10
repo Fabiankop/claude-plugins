@@ -1,7 +1,7 @@
 {
   "name": "factory",
   "displayName": "Factory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fábrica de software desatendida: construye issues de GitHub etiquetados `factory` con las skills de Matt Pocock (grilling, to-spec, tdd, code-review), una compuerta determinista, revisores por superficie y un approver que decide si el PR se fusiona solo.",
   "author": { "name": "Fabián Rodríguez", "url": "https://github.com/Fabiankop" },
   "repository": "https://github.com/Fabiankop/claude-plugins",
